@@ -781,7 +781,7 @@ TEST_P(ModelTest, Run) {
 #endif
 
     std::vector<std::basic_string<ORTCHAR_T>> paths;
-#if defined(NDEBUG) || defined(RUN_MODELTEST_IN_DEBUG_MODE)
+#if 0
 #ifdef _WIN32
     paths.push_back(ORT_TSTR("..\\models"));
 #else
