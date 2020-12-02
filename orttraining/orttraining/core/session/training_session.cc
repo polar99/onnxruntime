@@ -6,6 +6,7 @@
 #include "core/framework/data_transfer_utils.h"
 #include "core/graph/model.h"
 #include "core/session/IOBinding.h"
+#include "core/optimizer/rule_based_graph_transformer.h"
 #include "core/providers/cpu/controlflow/utils.h"
 #include "core/providers/cpu/cpu_execution_provider.h"
 #include "orttraining/core/graph/loss_function_builder.h"
@@ -15,13 +16,12 @@
 #include "orttraining/core/framework/distributed_run_context.h"
 #include "orttraining/core/graph/optimizer_graph_builder_registry.h"
 #include "orttraining/core/optimizer/graph_transformer_utils.h"
-#include "core/optimizer/rule_based_graph_transformer.h"
 #include "orttraining/core/graph/mixed_precision_transformer.h"
 #include "orttraining/core/graph/tensorboard_transformer.h"
 #include "orttraining/core/graph/pipeline_transformer.h"
 #include "orttraining/core/graph/gradient_builder_base.h"
+#include "orttraining/core/session/tensor_helper.h"
 #include "orttraining/models/runner/training_util.h"
-#include "orttraining/core/session/tensorhelper.h"
 
 //Gist Encoding
 #include "orttraining/core/optimizer/gist_encode_decode.h"
@@ -158,6 +158,7 @@ const std::string TrainingSession::training_mode_string_ = "training_mode";
 // as pointer to sent/recieved data and the size of the data in byte. See how
 // Send and Recv call SubmitSendAndWait and SubmitRecvAndWait, respectively.
 void TrainingSession::LaunchNcclService(const int pipeline_stage_id) {
+#if defined(USE_NCCL) && defined(USE_NCCL_P2P)
   auto& nccl_service = cuda::NcclService::GetInstance();
 
   // Create NCCL communication plan. The plan is a vector of communication task group.
@@ -186,6 +187,9 @@ void TrainingSession::LaunchNcclService(const int pipeline_stage_id) {
 
   // Launch NCCL service to execute the plan.
   nccl_service.Launch();
+#else
+  ORT_UNUSED_PARAMETER(pipeline_stage_id);
+#endif
 }
 
 Status TrainingSession::ConfigureForTraining(

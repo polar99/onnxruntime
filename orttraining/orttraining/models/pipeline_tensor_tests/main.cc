@@ -16,7 +16,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <tuple>
-#include "orttraining/core/session/tensorhelper.h"
+#include "orttraining/core/session/tensor_helper.h"
 #include "core/providers/cuda/cuda_allocator.h"
 #include "core/framework/bfc_arena.h"
 
