@@ -9,58 +9,40 @@ using namespace onnxruntime::common;
 
 namespace onnxruntime {
 
-size_t findIndex(const std::vector<int64_t>& dims, const std::vector<int64_t>& indices) {
-  size_t linear_index = 0;
-  for (unsigned int i = 0; i < dims.size(); i++) {
-    ORT_ENFORCE(indices[i] >= 0);
-    ORT_ENFORCE(indices[i] < dims[i]);
-    ORT_ENFORCE(dims[i] > 1);
-    linear_index = indices[i] + dims[i] * linear_index;
-  }
-  return linear_index;
-}
-
+// Return the shape of a tensor slice.
 std::vector<int64_t> GetSliceShape(
-    const std::vector<int64_t>& shape,
-    const size_t& slice_axis,
-    const size_t& num_slices,
-    size_t& contiguous_slice_size,
-    size_t& total_num_elements) {
+    const std::vector<int64_t>& shape,  // before-slicing tensor shape
+    const size_t& slice_axis,           // axis to slice along
+    const size_t& num_slices) {         // number of slices along the slicing axis
   ORT_ENFORCE(shape.size() > 0);
   ORT_ENFORCE(slice_axis < shape.size());
   ORT_ENFORCE(num_slices > 0);
 
   // Shape of slice along slice_axis.
   std::vector<int64_t> slice_shape;
-  contiguous_slice_size = 1;
-  total_num_elements = 1;
 
+  // Go through the original dimensions to get the dimensions after slicing.
   for (size_t i_shape = 0; i_shape < shape.size(); ++i_shape) {
     const auto d = shape[i_shape];
 
     // Compute slice's shape.
     if (i_shape == slice_axis) {
+      // Dimension shrinks due to slicing.
       slice_shape.push_back(d / num_slices);
     } else {
+      // Dimension not sliced, so we just copy its original value.
       slice_shape.push_back(d);
     }
-
-    // Compute the largest contigiguous memory block
-    // copied from the original tensor.
-    if (i_shape > slice_axis) {
-      contiguous_slice_size *= d;
-    }
-
-    // Also record the number of total elements in the original tensor.
-    // It will be used as boundary when copying slice content from the
-    // original tensor.
-    total_num_elements *= d;
   }
 
   return slice_shape;
 }
 
-OrtValue CreateCpuTensorValue(const MLDataType elem_type, std::vector<int64_t> shape, TrainingSession& session_state) {
+// Given tensor's element type and shape, this function creates a tensor in the passed-in session.
+OrtValue CreateCpuTensorValue(
+    const MLDataType elem_type,
+    std::vector<int64_t> shape,
+    TrainingSession& session_state) {
   ORT_ENFORCE(elem_type->AsPrimitiveDataType(), "Tensor's element type must be a scalar type.");
   ORT_ENFORCE(shape.size() > 0, "Shape vector must be non-empty.");
 
@@ -71,14 +53,22 @@ OrtValue CreateCpuTensorValue(const MLDataType elem_type, std::vector<int64_t> s
   // Given a shape, allocate a tensor using CPU allocator.
   auto cpu_tensor = onnxruntime::make_unique<Tensor>(elem_type, shape, cpu_allocator);
 
+  // Create type definition for the created tensor.
   auto tensor_type = DataTypeImpl::GetType<Tensor>();
+
   // Create OrtValue to wrap the allocated tensor.
   OrtValue cpu_value{cpu_tensor.release(), tensor_type, tensor_type->GetDeleteFunc()};
 
   return cpu_value;
 }
 
-void CopyGpuToCpu(void* dst_ptr, const void* src_ptr, const size_t& size, const OrtMemoryInfo& dst_location, const OrtMemoryInfo& src_location) {
+// Copy a chunk of memory to CPU from GPU.
+void CopyGpuToCpu(
+    void* dst_ptr,
+    const void* src_ptr,
+    const size_t& size,
+    const OrtMemoryInfo& dst_location,
+    const OrtMemoryInfo& src_location) {
   ORT_ENFORCE(dst_location.device.Type() == OrtDevice::CPU);
 
   // Current CUDA device.
@@ -98,7 +88,13 @@ void CopyGpuToCpu(void* dst_ptr, const void* src_ptr, const size_t& size, const 
   }
 }
 
-void CopyCpuToCpu(void* dst_ptr, const void* src_ptr, const size_t& size, const OrtMemoryInfo& dst_location, const OrtMemoryInfo& src_location) {
+// Copy a chunk of memory to CPU from CPU.
+void CopyCpuToCpu(
+    void* dst_ptr,
+    const void* src_ptr,
+    const size_t& size,
+    const OrtMemoryInfo& dst_location,
+    const OrtMemoryInfo& src_location) {
   ORT_ENFORCE(src_location.device.Type() == OrtDevice::CPU);
   ORT_ENFORCE(dst_location.device.Type() == OrtDevice::CPU);
   memcpy(dst_ptr, src_ptr, size);
@@ -140,7 +136,7 @@ void CopyToCpuTensor(Tensor& dst, const Tensor& src) {
 // Assume that input shape is [10, 8, 2], slice_axis=1, num_slices=4.
 // The destination's tensor is computed using
 //  dst = src[:, lower:upper, :],
-// where 
+// where
 //  slice_stride = 8 / num_slices,
 //  lower = slice_id * slice_stride,
 //  upper = (slice_id + 1) * slice_stride.
@@ -202,8 +198,15 @@ void CopySlice(Tensor& dst, const Tensor& src, const size_t slice_id, const size
   }
 }
 
-OrtValue SliceTensor1(const OrtValue& value, const size_t slice_id,
-                      const size_t slice_axis, const size_t num_slices, TrainingSession& session_state) {
+// Slice the input tensor "value" along the axis indicated by "slice_axis".
+// It's the "slice_id"-th slice along the indicated axis and the total number
+// of slices is "num_slices".
+OrtValue SliceTensor(
+    const OrtValue& value,
+    const size_t slice_id,
+    const size_t slice_axis,
+    const size_t num_slices,
+    TrainingSession& session_state) {
   ORT_ENFORCE(value.IsTensor(), "Sliced value must be a tensor.");
   auto& src = value.Get<Tensor>();
   auto src_shape = src.Shape().GetDims();
@@ -213,112 +216,17 @@ OrtValue SliceTensor1(const OrtValue& value, const size_t slice_id,
   auto& buf = *buf_value.GetMutable<Tensor>();
   CopyToCpuTensor(buf, src);
 
-  // TODO: remove.
-  size_t contiguous_slice_size, total_num_elements;
+  // Compute the shape of the slice_id-th slice in the original tensor.
+  auto slice_shape = GetSliceShape(src_shape, slice_axis, num_slices);
 
-  // Create the output, a slice of the original tensor.
-  auto slice_shape = GetSliceShape(src_shape, slice_axis, num_slices, contiguous_slice_size, total_num_elements);
+  // Allocate the slice as a tensor.
   auto dst_value = CreateCpuTensorValue(src.DataType(), slice_shape, session_state);
   ORT_ENFORCE(dst_value.IsTensor(), "Buffer value must be a tensor.");
   auto& dst = *dst_value.GetMutable<Tensor>();
 
-  // Copy the content of slice from the original tensor.
+  // Copy the content of slice from the original tensor to the newly allocated tensor.
   CopySlice(dst, buf, slice_id, slice_axis, num_slices);
 
   return dst_value;
 }
-
-OrtValue SliceTensor(const OrtValue& orig_value, const size_t slice_id,
-                     const size_t slice_axis, const size_t num_slices, TrainingSession& session_state) {
-  // Get tensor from OrtValue
-  const Tensor& orig_tensor = orig_value.Get<Tensor>();
-
-  // Get the tensor shape
-  const TensorShape& orig_tensor_shape = orig_tensor.Shape();
-  const MLDataType orig_tensor_type = orig_tensor.DataType();
-  const OrtMemoryInfo orig_tensor_location = orig_tensor.Location();
-
-  // Get the shape of the tensor to slice.
-  const std::vector<int64_t>& orig_dims = orig_tensor_shape.GetDims();
-  ORT_ENFORCE(orig_dims[slice_axis] % num_slices == 0,
-              "The number of slices, \"num_slices\", does not evenly divide the dimension along the sliced axis \"slice_axis\".",
-              " num_slices=", num_slices, ", slice_axis=", orig_dims[slice_axis]);
-
-  // Declare a vector to store the shape of the tensor slice.
-  size_t contiguous_slice_size, total_num_elements;
-  auto small_dims = GetSliceShape(orig_dims, slice_axis, num_slices, contiguous_slice_size, total_num_elements);
-  TensorShape small_shape(small_dims);
-
-  // Use the calculated slice shape to allocate a tensor.
-  // Content will be copied from original tensor later.
-  OrtValue small_cpu_value = CreateCpuTensorValue(orig_tensor_type, small_dims, session_state);
-
-  auto cpu_ptr = orig_value.Get<Tensor>().DataRaw();
-  auto small_cpu_ptr = small_cpu_value.GetMutable<Tensor>()->MutableDataRaw();
-
-  int device;
-  cudaGetDevice(&device);
-  size_t elements_read_so_far = 0;
-  size_t bias = 0;
-  size_t num_strides = 0;
-  size_t slice_size = orig_dims[slice_axis] / num_slices;  //assuming that dims[slice_axis] is perfectly divisible else throw error
-  size_t copied_size = orig_tensor_type->Size() * contiguous_slice_size * slice_size;
-  while (elements_read_so_far <= total_num_elements) {
-    bias = (elements_read_so_far + slice_id * slice_size * contiguous_slice_size) * orig_tensor_type->Size();
-    if (std::string(orig_tensor_location.name) == std::string("Cuda")) {
-      if (device != orig_tensor_location.id) {
-        cudaSetDevice(orig_tensor_location.id);
-      }
-
-      cudaMemcpy(static_cast<char*>((void*)small_cpu_ptr) + num_strides * copied_size, static_cast<const char*>(cpu_ptr) + bias, copied_size, cudaMemcpyDeviceToHost);
-
-      if (device != orig_tensor_location.id) {
-        cudaSetDevice(device);
-      }
-    } else {
-      memcpy(static_cast<char*>((void*)small_cpu_ptr) + num_strides * copied_size, static_cast<const char*>(cpu_ptr) + bias, copied_size);
-    }
-    elements_read_so_far += orig_dims[slice_axis] * contiguous_slice_size;
-
-    num_strides += 1;
-  }
-
-  copied_size = num_strides * copied_size;
-  if (std::string(orig_tensor_location.name) == std::string("Cuda")) {
-    // Get CPU tensor to be copied.
-    const Tensor& copied_tensor = small_cpu_value.Get<Tensor>();
-
-    // Create GPU tensor to capture CPU data.
-    AllocatorPtr allocator = session_state.GetAllocator(orig_tensor_location);
-    auto small_tensor = onnxruntime::make_unique<Tensor>(orig_tensor_type, small_shape, allocator);
-    auto tensor_type = DataTypeImpl::GetType<Tensor>();
-    OrtValue small_value{small_tensor.release(), tensor_type, tensor_type->GetDeleteFunc()};
-    Tensor* capturing_tensor = small_value.GetMutable<Tensor>();
-
-    if (device != orig_tensor_location.id) {
-      cudaSetDevice(orig_tensor_location.id);
-    }
-
-    cudaMemcpy(capturing_tensor->MutableDataRaw(), copied_tensor.DataRaw(), copied_size, cudaMemcpyHostToDevice);
-
-    if (device != orig_tensor_location.id) {
-      cudaSetDevice(device);
-    }
-    return small_value;
-  } else if (std::string(orig_tensor_location.name) == std::string("Cpu")) {
-    const Tensor& copied_tensor = small_cpu_value.Get<Tensor>();
-
-    AllocatorPtr allocator = session_state.GetAllocator(orig_tensor_location);
-    auto small_tensor = onnxruntime::make_unique<Tensor>(orig_tensor_type, small_shape, allocator);
-    auto tensor_type = DataTypeImpl::GetType<Tensor>();
-    OrtValue small_value{small_tensor.release(), tensor_type, tensor_type->GetDeleteFunc()};
-    Tensor* capturing_tensor = small_value.GetMutable<Tensor>();
-
-    memcpy(capturing_tensor->MutableDataRaw(), copied_tensor.DataRaw(), copied_size);
-    return small_value;
-  } else {
-    ORT_ENFORCE(false, "This shouldn't happen.");
-  }
-
-}  // slice func ends
 }
