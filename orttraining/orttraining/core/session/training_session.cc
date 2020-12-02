@@ -359,13 +359,14 @@ Status TrainingSession::ConfigureForTraining(
       weight_names_to_train, loss_name, config.gradient_graph_config, *session_logger_));
 
   if (config.pipeline_config.has_value()) {
-    // TODO: The number of pipeline steps should be passed in from Python API.
+    // The number of pipeline steps. It's used as the number of micro-batches for pipeling
+    // computation.
     const int num_pipeline_steps = config.distributed_config.num_pipeline_steps;
     const int num_pipeline_stages = config.distributed_config.pipeline_parallel_size;
     pipeline_schedule_ = pipeline::PipelineScheduler(num_pipeline_steps, num_pipeline_stages);
     pipeline_worker_pool_ = pipeline::PipelineWorkerPool(num_pipeline_stages);
 
-    // Insert InsertPipelineOps may access "sliced_schema" from "pipeline_context_".
+    // Insert PipelineOps may access "sliced_schema" from "pipeline_context_".
     pipeline_context_.sliced_schema = config.distributed_config.sliced_schema;
     // Declare a place holder for pipeline configuration.
     TrainingConfigurationResult::PipelineConfigurationResult pipeline_result{};
