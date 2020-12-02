@@ -344,7 +344,7 @@ class TrainingSession : public InferenceSession {
       const int stage_id,
       IOBinding& io_binding);
 
-  void CreateBatchVariables(
+  void CreateMicroBatchVariables(
       IOBinding& io_binding, IOBinding& sub_io_binding,
       const size_t slice_id, const size_t num_slices);
 

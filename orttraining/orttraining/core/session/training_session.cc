@@ -1046,7 +1046,7 @@ common::Status TrainingSession::RunWithoutPipeline(const RunOptions& run_options
   return InferenceSession::Run(run_options, io_binding);
 }
 
-void TrainingSession::CreateBatchVariables(
+void TrainingSession::CreateMicroBatchVariables(
     IOBinding& io_binding,
     IOBinding& sub_io_binding,
     const size_t slice_id,
@@ -1192,7 +1192,7 @@ common::Status TrainingSession::RunWithPipeline(const RunOptions& run_options, I
     ORT_RETURN_IF_ERROR(status);
 
     // Add inputs and outputs to the binding.
-    CreateBatchVariables(io_binding, *sub_io_binding.get(), i, num_steps);
+    CreateMicroBatchVariables(io_binding, *sub_io_binding.get(), i, num_steps);
 
     // Add proper events to the binding.
     CreatePipelineEvents(training_mode, i, stage_id, *sub_io_binding.get());
