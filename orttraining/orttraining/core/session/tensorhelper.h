@@ -5,6 +5,7 @@
 #include "orttraining/core/session/training_session.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "core/providers/cuda/cuda_common.h"
 
 #include <memory>
 #include <sstream>
@@ -65,6 +66,9 @@ namespace onnxruntime {
 size_t findIndex(std::vector<int64_t> dims, std::vector<int64_t> indices);
 
 OrtValue SliceTensor(const OrtValue& orig_value, const size_t slice_id,
+                    const size_t slice_axis, const size_t num_slices, TrainingSession& session_state);
+
+OrtValue SliceTensor1(const OrtValue& orig_value, const size_t slice_id,
                     const size_t slice_axis, const size_t num_slices, TrainingSession& session_state);
 
 }

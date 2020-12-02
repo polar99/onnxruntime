@@ -1068,7 +1068,8 @@ void TrainingSession::CreateBatchVariables(
     const size_t slice_axis = static_cast<size_t>(pipeline_context_.sliced_axes[name]);
 
     if (has_element(pipeline_context_.sliced_tensor_names, name)) {
-      OrtValue sliced_value = SliceTensor(inputs[i], slice_id, slice_axis, num_slices, *this);
+      std::cout << "[training_session.cc] slice " << name << std::endl;
+      OrtValue sliced_value = SliceTensor1(inputs[i], slice_id, slice_axis, num_slices, *this);
       sub_io_binding.BindInput(name, sliced_value);
     } else {
       sub_io_binding.BindInput(name, inputs[i]);
@@ -1087,7 +1088,7 @@ void TrainingSession::CreateBatchVariables(
                 "Sliced axis of output \"", name, "\" must be non-negative but got ", pipeline_context_.sliced_axes[name]);
     const size_t slice_axis = static_cast<size_t>(pipeline_context_.sliced_axes[name]);
     if (has_element(pipeline_context_.sliced_tensor_names, name)) {
-      OrtValue sliced_value = SliceTensor(outputs[i], slice_id, slice_axis, num_slices, *this);
+      OrtValue sliced_value = SliceTensor1(outputs[i], slice_id, slice_axis, num_slices, *this);
       sub_io_binding.BindOutput(name, sliced_value);
     } else {
       sub_io_binding.BindOutput(name, outputs[i]);
