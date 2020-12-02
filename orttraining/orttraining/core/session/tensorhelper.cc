@@ -2,10 +2,9 @@
 // Licensed under the MIT License.
 
 #include "orttraining/core/session/tensorhelper.h"
-
-using namespace ONNX_NAMESPACE;
-using namespace onnxruntime::experimental;
-using namespace onnxruntime::common;
+#include "core/providers/cuda/cuda_common.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 namespace onnxruntime {
 
@@ -42,7 +41,7 @@ std::vector<int64_t> GetSliceShape(
 OrtValue CreateCpuTensorValue(
     const MLDataType elem_type,
     std::vector<int64_t> shape,
-    TrainingSession& session_state) {
+    onnxruntime::InferenceSession& session_state) {
   ORT_ENFORCE(elem_type->AsPrimitiveDataType(), "Tensor's element type must be a scalar type.");
   ORT_ENFORCE(shape.size() > 0, "Shape vector must be non-empty.");
 
@@ -206,7 +205,7 @@ OrtValue SliceTensor(
     const size_t slice_id,
     const size_t slice_axis,
     const size_t num_slices,
-    TrainingSession& session_state) {
+    onnxruntime::InferenceSession& session_state) {
   ORT_ENFORCE(value.IsTensor(), "Sliced value must be a tensor.");
   auto& src = value.Get<Tensor>();
   auto src_shape = src.Shape().GetDims();
