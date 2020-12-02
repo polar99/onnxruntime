@@ -135,8 +135,8 @@ DistributedRunContext::DistributedRunContext(int32_t world_rank,
   for (auto r = 0; r < pipeline_stage_size; r++) {
     pipeline_group_ranks.push_back(pipe_group_start_index + r * (data_parallel_size * horizontal_parallel_size));
   }
-  groups_[WorkerGroupType::ModelParallel] = {pipeline_group_ranks, pipe_group_id,
-                                             WorkerGroupType::ModelParallel, z};
+  groups_[WorkerGroupType::PipelineParallel] = {pipeline_group_ranks, pipe_group_id,
+                                             WorkerGroupType::PipelineParallel, z};
 }
 
 }  // namespace training

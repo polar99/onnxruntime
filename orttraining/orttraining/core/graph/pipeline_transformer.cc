@@ -1023,7 +1023,7 @@ common::Status SplitGraph(Graph& graph,
   // source and destination rank.
   // Noted: currently assume each stage has the same number of data parallel size. Variable data parallel
   // size between different pipeline stages is not supported.
-  auto ranks = DistributedRunContext::GetRanks(WorkerGroupType::ModelParallel);
+  auto ranks = DistributedRunContext::GetRanks(WorkerGroupType::PipelineParallel);
 
   for (size_t index = 0; index < split_edge_groups.size(); ++index) {
     // each entry in split_edge_groups represents a partition cut. Each cut can contain the split of

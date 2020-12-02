@@ -217,7 +217,7 @@ Status TrainingSession::ConfigureForTraining(
                                          config.distributed_config.horizontal_parallel_size,
                                          config.distributed_config.pipeline_parallel_size});
 
-  const int32_t pipeline_stage_id = config.pipeline_config.has_value() ? DistributedRunContext::RankInGroup(WorkerGroupType::ModelParallel) : -1;
+  const int32_t pipeline_stage_id = config.pipeline_config.has_value() ? DistributedRunContext::RankInGroup(WorkerGroupType::PipelineParallel) : -1;
 
   ORT_ENFORCE(pipeline_context_.expected_output_names.empty(),
               "Uninitialized output name list should be empty. ",
@@ -240,7 +240,7 @@ Status TrainingSession::ConfigureForTraining(
     if (config.pipeline_config.value().partitioned_model_path.has_value()) {
       // Save the partitioned file out.
       // To avoid writing conflict, only the ranks in first pipeline group write the partition file out.
-      if (DistributedRunContext::GroupId(WorkerGroupType::ModelParallel) == 0) {
+      if (DistributedRunContext::GroupId(WorkerGroupType::PipelineParallel) == 0) {
         ORT_IGNORE_RETURN_VALUE(Save(
             config.pipeline_config.value().partitioned_model_path.value(), SaveOption::NO_RELOAD));
       }
@@ -422,7 +422,7 @@ Status TrainingSession::ConfigureForTraining(
     pipeline_worker_pool_ = pipeline::PipelineWorkerPool(config.distributed_config.pipeline_parallel_size);
     pipeline_context_.num_pipeline_steps = 1;
     pipeline_context_.num_pipeline_stages = config.distributed_config.pipeline_parallel_size;
-    pipeline_context_.pipeline_stage_id = DistributedRunContext::GroupId(WorkerGroupType::ModelParallel);
+    pipeline_context_.pipeline_stage_id = DistributedRunContext::GroupId(WorkerGroupType::PipelineParallel);
   }
 
   // All non-float tensors are not trainable. Remove those weights.
@@ -514,7 +514,7 @@ Status TrainingSession::ConfigureForTraining(
   // writing conflict, only the ranks in first pipeline group write the partition file out.
   // model_with_training_graph_path value.
   if ((IsRootNode(config) || (config.pipeline_config.has_value() &&
-                              DistributedRunContext::GroupId(WorkerGroupType::ModelParallel) == 0)) &&
+                              DistributedRunContext::GroupId(WorkerGroupType::PipelineParallel) == 0)) &&
       config.model_with_training_graph_path.has_value()) {
     ORT_IGNORE_RETURN_VALUE(Save(
         config.model_with_training_graph_path.value(), SaveOption::NO_RELOAD));

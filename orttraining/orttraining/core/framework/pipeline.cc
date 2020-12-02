@@ -366,11 +366,11 @@ void PipelineScheduler::MapStageIdToMpiRank() {
         // task.this_rank=0 means this stage is the first pipeline stage.
         // If data parallel is enabled, we may have multiple pipeline parallel groups.
         // The code below maps stage ID to MPI's world rank.
-        task.this_rank = DistributedRunContext::GetRanks(WorkerGroupType::ModelParallel)[task.this_rank];
+        task.this_rank = DistributedRunContext::GetRanks(WorkerGroupType::PipelineParallel)[task.this_rank];
 
         // Similarly, We do the mapping for peer's rank to know which process to communicate with
         // in runtime.
-        task.peer_rank = DistributedRunContext::GetRanks(WorkerGroupType::ModelParallel)[task.peer_rank];
+        task.peer_rank = DistributedRunContext::GetRanks(WorkerGroupType::PipelineParallel)[task.peer_rank];
       }
     }
   }
