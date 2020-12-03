@@ -85,7 +85,7 @@ const PipelineTask& PipelineSlot::GetFrontAction() const {
 
 PipelineScheduler::PipelineScheduler() : num_stages_(0), num_batches_(0) {}
 
-PipelineScheduler::PipelineScheduler(int num_batches, const int num_stages) : num_stages_(num_batches), num_batches_(num_stages) {
+PipelineScheduler::PipelineScheduler(int num_batches, const int num_stages) : num_stages_(num_stages), num_batches_(num_batches) {
   CreateComputeSchedule();
 
   const size_t num_events_per_slot_compute_side = 2;
