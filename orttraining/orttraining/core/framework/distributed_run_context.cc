@@ -3,7 +3,6 @@
 
 #include "distributed_run_context.h"
 #include "core/common/common.h"
-#include <iostream>
 
 namespace onnxruntime {
 namespace training {
@@ -136,7 +135,7 @@ DistributedRunContext::DistributedRunContext(int32_t world_rank,
     pipeline_group_ranks.push_back(pipe_group_start_index + r * (data_parallel_size * horizontal_parallel_size));
   }
   groups_[WorkerGroupType::PipelineParallel] = {pipeline_group_ranks, pipe_group_id,
-                                             WorkerGroupType::PipelineParallel, z};
+                                                WorkerGroupType::PipelineParallel, z};
 }
 
 }  // namespace training
