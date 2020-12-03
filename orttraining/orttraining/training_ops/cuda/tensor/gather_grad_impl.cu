@@ -331,15 +331,16 @@ void PartialSumsImpl(
     SegmentIndex_t last_segment_partial_segment_offset = 0,
                    last_segment_partial_segment_count = 0;
     // CPU/GPU sync!
-    CUDA_CALL_THROW(cudaMemcpy(
+    CUDA_CALL_THROW(cudaMemcpyAsync(
         &last_segment_partial_segment_offset,
         &per_segment_partial_segment_offsets.get()[num_segments - 1],
-        sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost));
+        sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost, stream));
     // CPU/GPU sync!
-    CUDA_CALL_THROW(cudaMemcpy(
+    CUDA_CALL_THROW(cudaMemcpyAsync(
         &last_segment_partial_segment_count,
         &per_segment_partial_segment_counts.get()[num_segments - 1],
-        sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost));
+        sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost, stream));
+    CUDA_CALL_THROW(cudaStreamSynchronize(stream));
     host_num_partial_segments =
         last_segment_partial_segment_offset + last_segment_partial_segment_count;
   }
@@ -436,8 +437,9 @@ void Impl(
         num_segments.get(), num_gathered_indices, stream));
 
     // CPU/GPU sync!
-    CUDA_CALL_THROW(cudaMemcpy(
-        &host_num_segments, num_segments.get(), sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost));
+    CUDA_CALL_THROW(cudaMemcpyAsync(
+        &host_num_segments, num_segments.get(), sizeof(SegmentIndex_t), cudaMemcpyDeviceToHost, stream));
+    CUDA_CALL_THROW(cudaStreamSynchronize(stream));
   }
 
   // get largest segment size and use that to select implementation
@@ -456,8 +458,9 @@ void Impl(
         segment_counts.get(), max_segment_count.get(), host_num_segments, stream));
 
     // CPU/GPU sync!
-    CUDA_CALL_THROW(cudaMemcpy(
-        &host_max_segment_count, max_segment_count.get(), sizeof(GatheredIndexIndex_t), cudaMemcpyDeviceToHost));
+    CUDA_CALL_THROW(cudaMemcpyAsync(
+        &host_max_segment_count, max_segment_count.get(), sizeof(GatheredIndexIndex_t), cudaMemcpyDeviceToHost, stream));
+    CUDA_CALL_THROW(cudaStreamSynchronize(stream));
   }
 
   constexpr GatheredIndexIndex_t kMaxSegmentSizeThreshold = 32;

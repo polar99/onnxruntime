@@ -110,7 +110,7 @@ Status ExpandByFill(cudaStream_t stream, const size_t element_size, const int N,
 }
 
 Status Expand2D(
-  cudaStream_t stream,
+    cudaStream_t stream,
     const size_t element_size,
     const int N,
     const void* input_data,

@@ -308,7 +308,7 @@ Status call_reduce_matrix_columns(
 
   // If more than one block is used per grid row, then inter-block reduction is needed.
   if (grid_dim.x > 1) {
-    CUDA_RETURN_IF_ERROR(cudaMemsetAsync(block_done_counts_buffer, 0, num_rows * sizeof(int)));
+    CUDA_RETURN_IF_ERROR(cudaMemsetAsync(block_done_counts_buffer, 0, num_rows * sizeof(int), stream));
   }
 
   const int shared_mem_size = sizeof(TBuf) * block_dim.x * block_dim.y / GPU_WARP_SIZE;

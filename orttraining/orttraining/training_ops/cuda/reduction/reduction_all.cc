@@ -81,7 +81,7 @@ Status ReduceAllL2<TIn, TOut>::ComputeInternal(OpKernelContext* ctx) const {
     // buffer for final output and square norms of each tensor
     auto results_buffer = GetScratchBuffer<CudaTAcc>(1 + total_tensor_count);
 
-    CUDA_RETURN_IF_ERROR(cudaMemsetAsync(results_buffer.get(), 0, sizeof(CudaTAcc) * (1 + total_tensor_count)));
+    CUDA_RETURN_IF_ERROR(cudaMemsetAsync(results_buffer.get(), 0, sizeof(CudaTAcc) * (1 + total_tensor_count), Stream()));
 
     CudaTAcc* p_global_sqnorm = results_buffer.get();
     CudaTAcc* p_tensor_sqnorm = p_global_sqnorm + 1;
